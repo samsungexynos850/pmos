@@ -1,0 +1,74 @@
+
+# Reference: <https://postmarketos.org/vendorkernel>
+# Kernel config based on: arch/arm64/configs/(CHANGEME!)
+
+pkgname=linux-samsung-a21s
+pkgver=4.19.132
+pkgrel=0
+pkgdesc="Samsung Galaxy A21s kernel fork"
+arch="aarch64"
+_carch="arm64"
+_flavor="samsung-a21s"
+url="https://kernel.org"
+license="GPL-2.0-only"
+options="!strip !check !tracedeps pmb:cross-native"
+makedepends="
+	bash
+	bc
+	linux-headers
+	bison
+	devicepkg-dev
+	findutils
+	flex
+	openssl-dev
+	perl
+	gcc6
+	dtc
+	python3
+"
+
+# Compiler: GCC 6 (doesn't boot when compiled with newer versions)
+if [ "${CC:0:5}" != "gcc6-" ]; then
+        CC="gcc6-$CC"
+        HOSTCC="gcc6-gcc"
+        CROSS_COMPILE="gcc6-$CROSS_COMPILE"
+fi
+
+REPLACE_GCCH=0
+
+# Source
+_repository="android_kernel_samsung_a21s"
+_commit="c33332b139d2e874819f678a86869d7aa97ed267"
+_config="config-$_flavor.$arch"
+source="
+	$pkgname-$_commit.tar.gz::https://github.com/Samsung-Galaxy-A21s/$_repository/archive/$_commit.tar.gz
+	$_config
+	001_dtb.patch
+"
+builddir="$srcdir/$_repository-$_commit"
+_outdir="out"
+
+prepare() {
+	default_prepare
+	. downstreamkernel_prepare
+}
+
+build() {
+	unset LDFLAGS
+	make O="$_outdir" ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS"
+}
+
+package() {
+	downstreamkernel_package "$builddir" "$pkgdir" "$_carch" \
+		"$_flavor" "$_outdir"
+
+	make dtbs_install O="$_outdir" ARCH="$_carch" \
+		INSTALL_DTBS_PATH="$pkgdir"/boot/dtbs
+}
+
+sha512sums="
+a4ba5f5acc69cbde99de20dc7926dcbbb9011515731530ec50e70d90cd18030384c0b281438e54855fc8ac158d8790d7b1268ae305abe1f9d9206c02ed467543  linux-samsung-a21s-c33332b139d2e874819f678a86869d7aa97ed267.tar.gz
+f928e946df760f666730aa31bb5a17dfa521d79d24026983f3d9c949461b3266c0b30a891cd09c03a32d5d0c394ac5486cfe5606e5574ee27bd3d2d4d40b0ced  config-samsung-a21s.aarch64
+fa26b43b83898817b93543643f74a0046409d2b9ff839eaa577d42b64fbbc13e4b26811f9c72771c0ecfc0935cbcdf254c70798d97d20dcc1d44d0579c6073e9  001_dtb.patch
+"
